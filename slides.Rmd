@@ -1,0 +1,122 @@
+---
+title: "Teaching with {tidymodels}"
+author: "Lisa Lendway, PhD"
+institute: "Macalester College"
+output:
+  xaringan::moon_reader:
+    df_print: paged
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(message = FALSE, 
+                      warning = FALSE)
+```
+
+```{r library-me, echo=FALSE}
+library(xaringan)
+#library(xaringanExtra)
+```
+
+# What is {tidymodels}?
+
+From the Tidymodels [website](https://www.tidymodels.org/), "The tidymodels framework is a collection of packages for modeling and machine learning using tidyverse principles."
+
+Questions:
+
+* Have you used {tidymodels}?  
+* If so, in what context did you use it?
+
+---
+
+
+# Resources
+
+* Tidymodels [website](https://www.tidymodels.org/). 
+* Tidy Modeling with R [textbook](https://www.tmwr.org/) by Julia Silge and Max Kuhn.  
+* Julia Silge's [blog](https://juliasilge.com/blog/) with many examples of using tidymodels from basic to complex.
+* Mine Çetinkaya-Rundel and Debbie Yuster's [slides](https://mine-cetinkaya-rundel.github.io/tidymodels-uscots-2021/tidy-up-models.html#1) from USCOTS 2021 - especially great for intro material.
+
+---
+
+# What we need
+
+Here are the libraries we need (some tidyverse libraries are loaded with tidymodels so you may not need both).
+
+```{r library-all}
+library(tidyverse)     # for data visualization and wrangling
+library(lubridate)     # for date wrangling
+library(tidymodels)    # for modeling ... the tidy way
+```
+
+---
+
+# Simple linear regression
+
+Let's start with a simple example using the `mpg` dataset from the tidyverse library. I want to compare what I do now (on the left) with what I would need to do using tidymodels. (We can jump back to R Markdown to get a better view.)
+
+.pull-left[
+
+## `lm()`
+
+```{r}
+slr <- lm(hwy ~ displ, data=mpg) 
+
+slr %>% 
+  tidy()
+```
+
+]
+
+.pull-right[
+
+## tidymodels
+
+```{r}
+
+slr_tm <-
+  # Define a linear regression model
+  linear_reg() %>% 
+  # Set the engine to "lm" (lm() function is used to fit model)
+  set_engine("lm") %>% 
+  # fit model
+  fit(hwy ~ displ, data=mpg)
+
+slr_tm %>% 
+  tidy()
+```
+
+]
+
+---
+
+# Linear regression - prediction 
+
+
+
+---
+
+# Linear regression with categorical predictor 
+
+Adding a categorical variable.
+
+---
+
+# Linear regression with interaction
+
+---
+
+# Simulation
+
+---
+
+# Machine learning
+
+---
+
+
