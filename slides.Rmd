@@ -9,6 +9,7 @@ output:
     nature:
       highlightStyle: github
       highlightLines: true
+      ratio: "16:9"
       countIncrementalSlides: false
 ---
 
@@ -22,6 +23,13 @@ knitr::opts_chunk$set(message = FALSE,
 library(xaringan)
 #library(xaringanExtra)
 ```
+
+# Welcome!
+
+* Find slides here: put link
+* Let's do some brief introductions: Name, pronouns, where you teach (or work, if you don't teach), and why you wanted to be here today.
+
+---
 
 # What is {tidymodels}?
 
@@ -52,6 +60,7 @@ Here are the libraries we need (some tidyverse libraries are loaded with tidymod
 library(tidyverse)     # for data visualization and wrangling
 library(lubridate)     # for date wrangling
 library(tidymodels)    # for modeling ... the tidy way
+theme_set(theme_minimal()) # my favorite default theme
 ```
 
 ---
@@ -61,9 +70,6 @@ library(tidymodels)    # for modeling ... the tidy way
 Let's start with a simple example using the `mpg` dataset from the tidyverse library. I want to compare what I do now (on the left) with what I would need to do using tidymodels. (We can jump back to R Markdown to get a better view.)
 
 .pull-left[
-
-## `lm()`
-
 ```{r}
 slr <- lm(hwy ~ displ, data=mpg) 
 
@@ -74,9 +80,6 @@ slr %>%
 ]
 
 .pull-right[
-
-## tidymodels
-
 ```{r}
 
 slr_tm <-
@@ -97,26 +100,319 @@ slr_tm %>%
 
 # Linear regression - prediction 
 
+And we can do prediction. We can add `data = mpg` to `augment()` to return all original variables. And we can add, eg, `newdata = tibble(displ = c(3, 3.5))` for a couple observations.
 
+.pull-left[
+
+```{r}
+slr %>% 
+  augment()
+```
+
+]
+
+.pull-right[
+
+```{r}
+slr_tm$fit %>% #need to pull the fit out of the rest of the model output
+  augment()
+```
+
+]
 
 ---
 
-# Linear regression with categorical predictor 
+# Linear regression with more complex model 
 
-Adding a categorical variable.
+.pull-left[
+
+```{r}
+slr_cat <- lm(hwy ~ drv*displ, data=mpg) 
+
+slr_cat %>% 
+  tidy()
+```
+
+]
+
+.pull-right[
+
+```{r}
+
+cat_tm <-
+  linear_reg() %>% 
+  set_engine("lm") %>% 
+  fit(hwy ~ drv*displ, data=mpg)
+
+cat_tm %>% 
+  tidy()
+```
+
+]
+---
+
+# Complex model in tidymodels another way
+
+Could be useful for easing into machine learning.
+
+.pull-left[
+```{r, eval=FALSE}
+rec <- recipe(hwy ~ drv + displ, data = mpg) %>% 
+  step_dummy(drv) %>% 
+  step_interact(terms = ~ starts_with("drv"):displ)
+  
+mod <- linear_reg() %>% 
+  set_engine("lm") 
+
+workflow() %>% 
+  add_recipe(rec) %>% 
+  add_model(mod) %>% 
+  fit(mpg) %>% # need to specify data
+  tidy()
+```
+]
+.pull-right[
+```{r, echo=FALSE}
+rec <- recipe(hwy ~ drv + displ, data = mpg) %>% 
+  step_dummy(drv) %>% 
+  step_interact(terms = ~ starts_with("drv"):displ)
+  
+mod <- linear_reg() %>% 
+  set_engine("lm") 
+
+workflow() %>% 
+  add_recipe(rec) %>% 
+  add_model(mod) %>% 
+  fit(mpg) %>% # need to specify data
+  tidy()
+```
+]
 
 ---
 
-# Linear regression with interaction
+# Inference
 
----
+When I teach inference, I start with bootstrapping to simulate the sampling distribution of the slope term. I haven't figured out how to do this well with tidymodels yet (just kidding ... with a bit of searching, I found this [blogpost](https://juliasilge.com/blog/superbowl-conf-int/) by Julia Silge). 
 
-# Simulation
+.pull-left[
+
+```{r, eval=FALSE}
+set.seed(155)
+samples_200 <- rep_sample_n(mpg, #data we're sampling from
+                            size = nrow(mpg), #size of each sample - same size
+                            reps = 200, #how many samples to take
+                            replace = TRUE #with or without
+                                            #replacement?
+                            )
+
+samples_200 %>% 
+  group_by(replicate) %>% 
+  summarize(tidy(lm(hwy ~ displ))) %>% 
+  filter(term == "displ") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_histogram()
+```
+]
+.pull-right[
+```{r, echo=FALSE}
+set.seed(155)
+samples_200 <- rep_sample_n(mpg, #data we're sampling from
+                            size = nrow(mpg), #size of each sample - same size
+                            reps = 200, #how many samples to take
+                            replace = TRUE #with or without
+                                            #replacement?
+                            )
+
+samples_200 %>% 
+  group_by(replicate) %>% 
+  summarize(tidy(lm(hwy ~ displ))) %>% 
+  filter(term == "displ") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_histogram()
+```
+]
 
 ---
 
 # Machine learning
 
+This is where tidymodels really excels (in my opinion). We can use similar workflows for different types of models. I am going to outline an example that is illustrated in further detail [here](https://advanced-ds-in-r.netlify.app/posts/2021-03-16-ml-review/).
+
+First, we need a few more libraries:
+
+```{r}
+library(glmnet)            # for regularized regression, including LASSO
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+```
+
 ---
+
+# tidymodels example
+
+King Count house prices dataset from moderndive library.
+
+```{r}
+data("house_prices")
+
+house_prices %>% 
+  slice(1:5)
+```
+
+
+---
+
+# tidymodels example - data splitting
+
+Log transform the response variable price. Split the training and testing data.
+
+```{r}
+set.seed(327) #for reproducibility
+
+house_prices <- house_prices %>% 
+  mutate(log_price = log(price, base = 10)) %>% 
+  select(-price)
+
+# Randomly assigns 75% of the data to training.
+house_split <- initial_split(house_prices, 
+                             prop = .75)
+house_training <- training(house_split)
+house_testing <- testing(house_split)
+```
+
+
+---
+
+
+# tidymodels example - recipe
+
+Do all the pre-processing
+
+```{r}
+house_recipe <- recipe(log_price ~ ., #short-cut, . = all other vars
+                       data = house_training) %>% 
+  step_rm(sqft_living15, sqft_lot15) %>%
+  step_log(starts_with("sqft"),
+           -sqft_basement, 
+           base = 10) %>% 
+  step_mutate(grade = as.character(grade),
+              grade = fct_relevel(
+                        case_when(
+                          grade %in% "1":"6"   ~ "below_average",
+                          grade %in% "10":"13" ~ "high",
+                          TRUE ~ grade
+                        ),
+                        "below_average","7","8","9","high"),
+              basement = as.numeric(sqft_basement == 0),
+              renovated = as.numeric(yr_renovated == 0),
+              view = as.numeric(view == 0),
+              waterfront = as.numeric(waterfront),
+              age_at_sale = year(date) - yr_built)%>% 
+  step_rm(sqft_basement, 
+          yr_renovated, 
+          yr_built) %>% 
+  step_date(date, 
+            features = "month") %>% 
+  update_role(all_of(c("id",
+                       "date",
+                       "zipcode", 
+                       "lat", 
+                       "long")),
+              new_role = "evaluative") %>% 
+  step_dummy(all_nominal(), 
+             -all_outcomes(), 
+             -has_role(match = "evaluative")) %>% 
+  step_normalize(all_predictors(), 
+                 -all_nominal())
+```
+
+
+---
+
+# tidymodels example - cv split of training
+
+We'll use this later when we tune a parameter in the model.
+
+```{r}
+set.seed(1211) # for reproducibility
+house_cv <- vfold_cv(house_training, v = 5)
+```
+
+
+---
+
+# tidymodels example - set up model and workflow
+
+
+```{r}
+house_lasso_mod <- 
+  # Define a lasso model 
+  # I believe default is mixture = 1 so probably don't need 
+  linear_reg(mixture = 1) %>% 
+  # Set the engine to "glmnet" 
+  set_engine("glmnet") %>% 
+  # The parameters we will tune.
+  set_args(penalty = tune()) %>% 
+  # Use "regression"
+  set_mode("regression")
+
+house_lasso_wf <- 
+  # Set up the workflow
+  workflow() %>% 
+  # Add the recipe
+  add_recipe(house_recipe) %>% 
+  # Add the modeling
+  add_model(house_lasso_mod)
+```
+
+---
+
+# tidymodels example - evaluate tuning parameters
+
+Make a tuning grid (use default), fit the model using cross-validation for all `penalty_grid` values and evaluate on all the folds.
+
+```{r}
+penalty_grid <- grid_regular(penalty(),
+                             levels = 20)
+house_lasso_tune <- 
+  house_lasso_wf %>% 
+  tune_grid(
+    resamples = house_cv,
+    grid = penalty_grid
+    )
+
+# rmse averaged over all folds:
+house_lasso_tune %>% 
+  collect_metrics() %>% 
+  filter(.metric == "rmse")
+```
+
+---
+
+# tidymodels example - fit final model
+
+We choose the best penalty parameter as the one with the smallest cross-validated RMSE. We then use that parameter to fit the model to the training data.
+
+```{r}
+best_param <- house_lasso_tune %>% 
+  select_best(metric = "rmse")
+
+house_lasso_final_wf <- house_lasso_wf %>% 
+  finalize_workflow(best_param)
+
+house_lasso_final_mod <- house_lasso_final_wf %>% 
+  fit(data = house_training)
+
+house_lasso_final_mod %>% 
+  pull_workflow_fit() %>% 
+  tidy() 
+```
+
+
+---
+
+
+# Open discussion
+
 
 
