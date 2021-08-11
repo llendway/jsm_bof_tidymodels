@@ -48,7 +48,8 @@ Questions:
 * Tidymodels [website](https://www.tidymodels.org/). 
 * Tidy Modeling with R [textbook](https://www.tmwr.org/) by Julia Silge and Max Kuhn.  
 * Julia Silge's [blog](https://juliasilge.com/blog/) with many examples of using tidymodels from basic to complex.
-* Mine Çetinkaya-Rundel and Debbie Yuster's [slides](https://mine-cetinkaya-rundel.github.io/tidymodels-uscots-2021/tidy-up-models.html#1) from USCOTS 2021 - especially great for intro material.
+* Mine Çetinkaya-Rundel and Debbie Yuster's [slides](https://mine-cetinkaya-rundel.github.io/tidymodels-uscots-2021/tidy-up-models.html#1) from USCOTS 2021 - especially great for intro material.  
+* [Example](https://advanced-ds-in-r.netlify.app/posts/2021-03-16-ml-review/) from my Advanced Data Science in R course.
 
 ---
 
@@ -97,6 +98,7 @@ slr_tm %>%
 ]
 
 ---
+
 
 # Linear regression - prediction 
 
@@ -151,6 +153,15 @@ cat_tm %>%
 ]
 ---
 
+# Questions
+
+* What do you like about using tidymodels right away?  
+* What makes you hesitate about using tidymodels right away?  
+* Other thoughts/questions?
+
+
+---
+
 # Complex model in tidymodels another way
 
 Could be useful for easing into machine learning.
@@ -190,9 +201,9 @@ workflow() %>%
 
 ---
 
-# Inference
+# Inference - using bootstrapping
 
-When I teach inference, I start with bootstrapping to simulate the sampling distribution of the slope term. I haven't figured out how to do this well with tidymodels yet (just kidding ... with a bit of searching, I found this [blogpost](https://juliasilge.com/blog/superbowl-conf-int/) by Julia Silge). 
+When I teach inference, I start with bootstrapping to simulate the sampling distribution of the slope term. 
 
 .pull-left[
 
@@ -214,7 +225,7 @@ samples_200 %>%
 ```
 ]
 .pull-right[
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
 set.seed(155)
 samples_200 <- rep_sample_n(mpg, #data we're sampling from
                             size = nrow(mpg), #size of each sample - same size
@@ -234,6 +245,60 @@ samples_200 %>%
 
 ---
 
+# Inference - bootstrapping with tidymodels
+
+I just learned how to do this with tidymodels using this [blogpost](https://juliasilge.com/blog/superbowl-conf-int/) by Julia Silge. 
+
+.pull-left[
+
+```{r, eval=FALSE}
+set.seed(155)
+
+tm_intervals <- 
+  reg_intervals(hwy ~ displ, # model formula
+                data = mpg, # data
+                model_fn = "lm", # function 
+                type = "percentile", 
+                times = 200, # number of samples
+                keep_reps = TRUE # keep bootstrap estimates?
+  )
+
+tm_intervals %>%
+  unnest(.replicates) %>%
+  ggplot(aes(estimate)) +
+  geom_histogram()
+```
+]
+.pull-right[
+```{r, echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
+set.seed(155)
+
+tm_intervals <- 
+  reg_intervals(hwy ~ displ, # model formula
+                data = mpg, # data
+                model_fn = "lm", # function 
+                type = "percentile", 
+                times = 200, # number of samples
+                keep_reps = TRUE # keep bootstrap estimates?
+  )
+
+tm_intervals %>%
+  unnest(.replicates) %>%
+  ggplot(aes(estimate)) +
+  geom_histogram()
+```
+]
+
+---
+
+# Questions
+
+* How does doing inference with tidymodels compare to what you usually do? 
+
+* What other functionality would you desire? I certainly haven't covered everything.
+
+---
+
 # Machine learning
 
 This is where tidymodels really excels (in my opinion). We can use similar workflows for different types of models. I am going to outline an example that is illustrated in further detail [here](https://advanced-ds-in-r.netlify.app/posts/2021-03-16-ml-review/).
@@ -243,7 +308,6 @@ First, we need a few more libraries:
 ```{r}
 library(glmnet)            # for regularized regression, including LASSO
 library(moderndive)        # for King County housing data
-library(vip)               # for variable importance plots
 ```
 
 ---
@@ -413,6 +477,11 @@ house_lasso_final_mod %>%
 
 
 # Open discussion
+
+* What do you like about tidymodels?  
+* What reservations do you have about tidymodels?  
+* Where in the statistics/data science curriculum do you think is the best place to introduce tidymodels? And why?  
+* What didn't we talk about that we should?  
 
 
 
