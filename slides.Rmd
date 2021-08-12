@@ -118,6 +118,9 @@ slr %>%
 ```{r}
 slr_tm$fit %>% #need to pull the fit out of the rest of the model output
   augment()
+
+slr_tm %>% 
+  predict(mpg)
 ```
 
 ]
